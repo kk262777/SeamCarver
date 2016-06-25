@@ -8,8 +8,7 @@ import java.awt.*;
  * Created by xgy on 21/06/16.
  */
 public class SeamCarver {
-    private Picture pic;
-    private Color[][] picArr;
+    private int[][] picArr;
     private boolean transposed;
     private int trueWidth;
     private int trueHeight;
@@ -21,12 +20,12 @@ public class SeamCarver {
      * @param picture
      */
     public SeamCarver(Picture picture) {
-        this.pic = picture;
-        this.picArr = new Color[picture.height()][picture.width()];
+//        this.pic = picture;
+        this.picArr = new int[picture.height()][picture.width()];
 
         for (int row = 0; row < picArr.length; row++) {
             for (int col = 0; col < picArr[0].length; col++) {
-                picArr[row][col] = picture.get(col, row);
+                picArr[row][col] = picture.get(col, row).getRGB();
             }
         }
         transposed = false;
@@ -40,8 +39,21 @@ public class SeamCarver {
      * @return Picture type
      */
     public Picture picture() {
-        this.pic = arrToPic();
-        return this.pic;
+//        this.pic = arrToPic();
+//        return this.pic;
+        return arrToPic();
+    }
+
+    private int getRed(int rgb) {
+        return (rgb >> 16) & 0xFF;
+    }
+
+    private int getBlue(int rgb) {
+        return rgb & 0xFF;
+    }
+
+    private int getGreen(int rgb) {
+        return (rgb >> 8) & 0xFF;
     }
 
     /**
@@ -54,7 +66,7 @@ public class SeamCarver {
         Picture p = new Picture(trueWidth, trueHeight);
         for (int row = 0; row < p.height(); row++) {
             for (int col = 0; col < p.width(); col++) {
-                p.set(col, row, picArr[row][col]);
+                p.set(col, row, new Color(picArr[row][col]));
             }
         }
         return p;
@@ -103,6 +115,9 @@ public class SeamCarver {
      * @return
      */
     private double getEnergy(int col, int row) {
+        if (col < 0 || col >= trueWidth || row < 0 || row >= trueHeight) {
+            throw new IndexOutOfBoundsException();
+        }
         if (col == 0 || col == trueWidth - 1 || row == 0 || row == trueHeight - 1) {
             return 1000;
         }
@@ -120,9 +135,9 @@ public class SeamCarver {
      * @return
      */
     private double deltaX2(int col, int row) {
-        double redDiff = picArr[row][col - 1].getRed() - picArr[row][col + 1].getRed();
-        double greenDiff = picArr[row][col - 1].getGreen() - picArr[row][col + 1].getGreen();
-        double blueDiff = picArr[row][col - 1].getBlue() - picArr[row][col + 1].getBlue();
+        double redDiff = getRed(picArr[row][col - 1]) - getRed(picArr[row][col + 1]);
+        double greenDiff = getGreen(picArr[row][col - 1]) - getGreen(picArr[row][col + 1]);
+        double blueDiff = getBlue(picArr[row][col - 1]) - getBlue(picArr[row][col + 1]);
 
         double res = Math.pow(redDiff, 2) + Math.pow(greenDiff, 2) + Math.pow(blueDiff, 2);
         if (Double.isNaN(res)) return 0.0;
@@ -137,9 +152,9 @@ public class SeamCarver {
      * @return
      */
     private double deltaY2(int col, int row) {
-        double redDiff = picArr[row - 1][col].getRed() - picArr[row + 1][col].getRed();
-        double greenDiff = picArr[row - 1][col].getGreen() - picArr[row + 1][col].getGreen();
-        double blueDiff = picArr[row - 1][col].getBlue() - picArr[row + 1][col].getBlue();
+        double redDiff = getRed(picArr[row - 1][col]) - getRed(picArr[row + 1][col]);
+        double greenDiff = getGreen(picArr[row - 1][col]) - getGreen(picArr[row + 1][col]);
+        double blueDiff = getBlue(picArr[row - 1][col]) - getBlue(picArr[row + 1][col]);
 
         double res = Math.pow(redDiff, 2) + Math.pow(greenDiff, 2) + Math.pow(blueDiff, 2);
         if (Double.isNaN(res)) return 0.0;
@@ -150,10 +165,9 @@ public class SeamCarver {
      * @param col
      * @param row
      * @param energy  2D array recording energy of each cell
-     * @param distTo  previous cell pointing to this cell, which make a shortest path(sum of energy) to this cell.
      * @param pathSum path sum (sum of energy)
      */
-    private void verticalRelax(int col, int row, double[][] energy, int[][][] distTo, double[][] pathSum) {
+    private void verticalRelax(int col, int row, double[][] energy, double[][] pathSum) {
         /* look into three cell on the next row */
         double curSumEnergy = pathSum[col][row];
 
@@ -162,16 +176,16 @@ public class SeamCarver {
             double targetSumEnergy = pathSum[col - 1][row + 1];
             if (targetSumEnergy == 0.0 || targetSumEnergy > energy[col - 1][row + 1] + curSumEnergy) {
                 pathSum[col - 1][row + 1] = energy[col - 1][row + 1] + curSumEnergy;
-                distTo[col - 1][row + 1][0] = col;
-                distTo[col - 1][row + 1][1] = row;
+//                distTo[col - 1][row + 1] = col;
+//                distTo[col - 1][row + 1][1] = row;
             }
         }
         /* down cell */
         double targetSumEnergyMid = pathSum[col][row + 1];
         if (targetSumEnergyMid == 0.0 || targetSumEnergyMid > energy[col][row + 1] + curSumEnergy) {
             pathSum[col][row + 1] = energy[col][row + 1] + curSumEnergy;
-            distTo[col][row + 1][0] = col;
-            distTo[col][row + 1][1] = row;
+//            distTo[col][row + 1] = col;
+//            distTo[col][row + 1][1] = row;
         }
 
         /* down-right cell */
@@ -179,8 +193,8 @@ public class SeamCarver {
             double targetSumEnergy = pathSum[col + 1][row + 1];
             if (targetSumEnergy == 0.0 || targetSumEnergy > energy[col + 1][row + 1] + curSumEnergy) {
                 pathSum[col + 1][row + 1] = energy[col + 1][row + 1] + curSumEnergy;
-                distTo[col + 1][row + 1][0] = col;
-                distTo[col + 1][row + 1][1] = row;
+//                distTo[col + 1][row + 1] = col;
+//                distTo[col + 1][row + 1][1] = row;
             }
         }
     }
@@ -199,7 +213,7 @@ public class SeamCarver {
         /**
          * (cur.x, cur.y) -> [from.x, from.y]
          */
-        int[][][] distTo = new int[trueWidth][trueHeight][2];
+//        int[][] distTo = new int[trueWidth][trueHeight];
 
         /* calculate energy */
         for (int row = 0; row < trueHeight; row++) {
@@ -211,7 +225,7 @@ public class SeamCarver {
         /* relax edges updating shortest path */
         for (int row = 0; row < trueHeight - 1; row++) {
             for (int col = 0; col < trueWidth; col++) {
-                verticalRelax(col, row, energy, distTo, pathSum);
+                verticalRelax(col, row, energy, pathSum);
             }
         }
 
@@ -226,13 +240,23 @@ public class SeamCarver {
         }
 
         res[res.length - 1] = minIndex;
-        int count = res.length - 1;
-        while (count > 0) {
+        int row = res.length - 1;
+        while (row > 0) {
             /* trace back from bottom to up */
-            int fromCol = distTo[minIndex][count][0];
-            res[count - 1] = fromCol;
+//            int fromCol = distTo[minIndex][row];
+            double minSum = Double.MAX_VALUE;
+            int fromCol = 0;
+            int lBound = minIndex == 0 ? 0 : 1;
+            int rBound = minIndex == trueWidth - 1 ? 0 : 1;
+            for (int i = minIndex - lBound; i <= minIndex + rBound; i++) {
+                if (pathSum[i][row - 1] < minSum) {
+                    fromCol = i;
+                    minSum = pathSum[i][row - 1];
+                }
+            }
+            res[row - 1] = fromCol;
             minIndex = fromCol;
-            --count;
+            --row;
         }
 
         return res;
@@ -242,7 +266,7 @@ public class SeamCarver {
      * Transpose current pic array.
      */
     private void transpose() {
-        Color[][] transposedArr = new Color[trueWidth][trueHeight];
+        int[][] transposedArr = new int[trueWidth][trueHeight];
         for (int col = 0; col < trueWidth; col++) {
             for (int row = 0; row < trueHeight; row++) {
                 transposedArr[col][trueHeight - 1 - row] = picArr[row][col];
@@ -259,7 +283,7 @@ public class SeamCarver {
      * Back to original angle
      */
     private void deTranspose() {
-        Color[][] deTransposedArr = new Color[trueWidth][trueHeight];
+        int[][] deTransposedArr = new int[trueWidth][trueHeight];
         for (int col = 0; col < trueWidth; col++) {
             for (int row = 0; row < trueHeight; row++) {
                 deTransposedArr[trueWidth - 1 - col][row] = picArr[row][col];
@@ -293,6 +317,7 @@ public class SeamCarver {
             transpose();
         }
         int[] res = findSeam();
+
         for (int i = 0; i < res.length; i++) {
             res[i] = trueWidth - 1 - res[i];
         }
@@ -300,15 +325,28 @@ public class SeamCarver {
     }
 
     public void removeHorizontalSeam(int[] seam) {
+        /* check*/
         if (!transposed) {
             transpose();
+        }
+        if (seam.length != trueHeight) {
+            throw new IllegalArgumentException();
         }
         for (int i = 0; i < seam.length; i++) {
             seam[i] = trueWidth - 1 - seam[i];
         }
 
+        int prev = seam[0];
         for (int row = 0; row < seam.length; row++) {
-            System.arraycopy(picArr[row], seam[row] + 1, picArr[row], seam[row], trueWidth - seam[row] - 1);
+            int cur = seam[row];
+            if (Math.abs(cur - prev) > 1) {
+                throw new IllegalArgumentException();
+            }
+            if (cur < 0 || cur >= trueWidth) {
+                throw new IllegalArgumentException("index out of bound");
+            }
+            System.arraycopy(picArr[row], cur + 1, picArr[row], cur, trueWidth - cur - 1);
+            prev = cur;
         }
         trueWidth--;
 
@@ -323,9 +361,20 @@ public class SeamCarver {
         if (transposed) {
             deTranspose();
         }
-
+        if (seam.length != trueHeight) {
+            throw new IllegalArgumentException();
+        }
+        int prev = seam[0];
         for (int row = 0; row < seam.length; row++) {
+            int cur = seam[row];
+            if (Math.abs(cur - prev) > 1) {
+                throw new IllegalArgumentException();
+            }
+            if (cur < 0 || cur >= trueWidth) {
+                throw new IllegalArgumentException("index out of bound");
+            }
             System.arraycopy(picArr[row], seam[row] + 1, picArr[row], seam[row], trueWidth - seam[row] - 1);
+            prev = cur;
         }
         trueWidth--;
     }
